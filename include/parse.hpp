@@ -6,20 +6,49 @@
 #include <utility>
 #include <vector>
 
+#include <typeinfo>
+#include <print>
+
 #include "types.hpp"
 
 namespace stdx::details {
 
-// здесь ваш код
+template<typename T>
+bool is_type_matches_placeholder(std::string_view placeholder) {
+    if (placeholder == "%d") {
+        return std::is_integral_v<T>;
+    } else if (placeholder == "%s") {
+        return std::is_same_v<T, std::string> ||
+               std::is_same_v<T, std::string_view>;
+    } else if (placeholder == "%u") {
+        return std::is_integral_v<T> && !std::is_same_v<T, bool>
+            && std::is_unsigned_v<T>; 
+    } else if (placeholder == "%f") {
+        return std::is_floating_point_v<T>; 
+    }
+    return false;
+};
 
 // Функция для парсинга значения с учетом спецификатора формата
-template <typename T>
-std::expected<T, scan_error> parse_value_with_format(std::string_view input, std::string_view fmt) {
-    // здесь ваш код
+// template <typename T>
+// std::expected<T, scan_error> parse_value_with_format(std::string_view input, std::string_view fmt) {
+//     // здесь ваш код
+// }
+
+template<typename T>
+std::expected<bool, std::string> verify_matching(std::vector<std::string_view>& fmt, std::size_t& counter) {
+    if (!is_type_matches_placeholder<T>(fmt.at(counter++)))
+        return std::unexpected("Несоответствие между типом {0} и плейсхолдером {1}"); // , typeid(T).name(), fmt[counter]));
+    return true;
+}
+
+template<typename T>
+T add_verified_value(std::vector<std::string_view>& input, std::size_t& counter) {
+    return input[counter++];
 }
 
 // Функция для проверки корректности входных данных и выделения из обеих строк интересующих данных для парсинга
-template <typename... Ts>
+// template <typename... Ts>
 std::expected<std::pair<std::vector<std::string_view>, std::vector<std::string_view>>, scan_error>
 parse_sources(std::string_view input, std::string_view format) {
     std::vector<std::string_view> format_parts;  // Части формата между {}
@@ -67,7 +96,7 @@ parse_sources(std::string_view input, std::string_view format) {
     } else {
         input_parts.emplace_back(input);
     }
-    return std::pair{format_parts, input_parts};
+    return std::pair{input_parts, format_parts};
 }
 
 } // namespace stdx::details
