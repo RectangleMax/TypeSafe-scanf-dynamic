@@ -7,9 +7,11 @@
 #include <vector>
 
 #include <typeinfo>
-#include <print>
+#include <cxxabi.h>
 
 #include "types.hpp"
+
+#include <iostream>
 
 namespace stdx::details {
 
@@ -29,26 +31,65 @@ bool is_type_matches_placeholder(std::string_view placeholder) {
     return false;
 };
 
-// Функция для парсинга значения с учетом спецификатора формата
-// template <typename T>
-// std::expected<T, scan_error> parse_value_with_format(std::string_view input, std::string_view fmt) {
-//     // здесь ваш код
+
+// template<typename Head, typename... Tail>
+// std::expected<std::tuple<Head, Tail...>, details::scan_error> 
+// operator+(std::expected<std::tuple<Tail...>, details::scan_error> tuple_, std::expected<Head, details::scan_error> value_) {
+//     // tuple_ содержит либор кортеж, либо код ошибок
+//     if (tuple_.has_value()) {
+//         if (value_.has_value()) {
+//             return std::tuple_cat(std::make_tuple(value_), tuple_); // продолжаем собирать результаты парсинга в кортеж
+//         } else {
+//             return value_.error();  // если несоответствие плейсхолдера и типа встречается впервые 
+//         }
+//     } else { 
+//         if (value_.has_value()) {
+//             return tuple_.error();  // пробрасываем информацию об ошибках дальше
+//         } else {
+//             value_.error().aggregate(tuple_.error);
+//             return value_.error();
+//         }
+//     }
+    
 // }
 
+std::size_t parse_values_counter;
+
+// Функция для парсинга значения с учетом спецификатора формата
+template <typename T>
+std::expected<T, scan_error> parse_value_with_format(std::string_view input, std::string_view fmt) {
+    ++parse_values_counter;
+    T t;
+    return t;
+    // if (!is_type_matches_placeholder<T>(input)) {
+    //     return scan_error();
+    // }
+}
+
+// template<>
+// std::expected<std::tuple<Head, Ts>, std::string> operator+() {
+
+// }
+
+
+
 template<typename T>
-std::expected<bool, std::string> verify_matching(std::vector<std::string_view>& fmt, std::size_t& counter) {
-    if (!is_type_matches_placeholder<T>(fmt.at(counter++)))
-        return std::unexpected("Несоответствие между типом {0} и плейсхолдером {1}"); // , typeid(T).name(), fmt[counter]));
+bool verify_matching(std::vector<std::string_view>& fmt, std::size_t& counter, std::string& error_str) {
+    if (!is_type_matches_placeholder<T>(fmt.at(++counter))) {
+        error_str = "Плейсхолдер с порядковым номером {} несоответствует указанному среди шаблонных аргументов типу";
+         // Несоответствие между типом аргумента "; // (%s) и плейсхолдером {%s}", typeid(T).name(), fmt[counter]);
+        return false;
+    }
     return true;
 }
 
-template<typename T>
-T add_verified_value(std::vector<std::string_view>& input, std::size_t& counter) {
-    return input[counter++];
-}
+// template<typename T>
+// T add_verified_value(std::vector<std::string_view>& input, std::size_t& counter) {
+//     return input[counter++];
+// }
 
 // Функция для проверки корректности входных данных и выделения из обеих строк интересующих данных для парсинга
-// template <typename... Ts>
+template <typename... Ts>
 std::expected<std::pair<std::vector<std::string_view>, std::vector<std::string_view>>, scan_error>
 parse_sources(std::string_view input, std::string_view format) {
     std::vector<std::string_view> format_parts;  // Части формата между {}

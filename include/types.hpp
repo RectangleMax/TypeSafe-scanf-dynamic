@@ -7,6 +7,13 @@ namespace stdx::details {
 // Класс для хранения ошибки неуспешного сканирования
 struct scan_error {
     std::string message;
+    enum class ERROR {
+        MISMATCH_TYPE,
+        LACK_OF_ARGS,
+        LACK_OF_TYPES
+    };
+    ERROR first_found_error;
+    int first_mismatching_arg_num = 0; // порядковый номер аргумента, начинающийся с единицы
 };
 
 // Шаблонный класс для хранения результатов успешного сканирования
@@ -24,5 +31,6 @@ struct scan_result {
 private:
     std::tuple<Ts...> data;
 };
+
 
 } // namespace stdx::details
