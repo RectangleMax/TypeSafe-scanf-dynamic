@@ -17,7 +17,9 @@ namespace stdx::details {
 
 template<typename T>
 bool is_type_matches_placeholder(std::string_view placeholder) {
-    if (placeholder == "%d") {
+    if (placeholder.empty()) {
+        return true;
+    } else if (placeholder == "%d") {
         return std::is_integral_v<T>;
     } else if (placeholder == "%s") {
         return std::is_same_v<T, std::string> ||
@@ -53,17 +55,16 @@ bool is_type_matches_placeholder(std::string_view placeholder) {
     
 // }
 
-std::size_t parse_values_counter;
 
 // Функция для парсинга значения с учетом спецификатора формата
 template <typename T>
 std::expected<T, scan_error> parse_value_with_format(std::string_view input, std::string_view fmt) {
-    ++parse_values_counter;
+    if (!is_type_matches_placeholder<T>(input)) {
+        std::cout << "a!" << std::endl;
+        return std::unexpected(scan_error("temp"));
+    }
     T t;
     return t;
-    // if (!is_type_matches_placeholder<T>(input)) {
-    //     return scan_error();
-    // }
 }
 
 // template<>
