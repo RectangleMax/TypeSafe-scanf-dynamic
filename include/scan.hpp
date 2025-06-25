@@ -9,10 +9,10 @@
 
 namespace stdx {
 
+// Перегрузка "+" для разворачивания шаблонных параметров, завёрнутых в variadic template
 template<typename Head, typename... Tail>
 std::expected<std::tuple<Head, Tail...>, details::scan_error> 
 operator+(std::expected<std::tuple<Tail...>, details::scan_error> tail_tuple, std::expected<Head, details::scan_error> head_value) {
-    // return std::tuple_cat(std::make_tuple(head_value.value()), tail_tuple.value()); // продолжаем собирать результаты парсинга в кортеж
     if (tail_tuple.has_value()) {
         if (head_value.has_value()) { 
             return std::tuple_cat(std::make_tuple(head_value.value()), tail_tuple.value()); // продолжаем собирать результаты парсинга в кортеж
@@ -24,24 +24,55 @@ operator+(std::expected<std::tuple<Tail...>, details::scan_error> tail_tuple, st
             return std::unexpected(tail_tuple.error());  // если сейчас ОК, однако несоответствие было раньше, то пробрасываем информацию об ошибках дальше
         } else {
             tail_tuple.error().unite_mismatching_errors(head_value.error());
-            return std::unexpected(tail_tuple.error());  // если несоответствие встречается не впервые, то объединяем этот факт с информацией о предыдущих ошибках
+            return std::unexpected(tail_tuple.error());  // если выявленное несоответствие не впервой, то объединяем этот факт с информацией о предыдущих ошибках
         }
     }   
 }
-    
 
-// замените болванку функции scan на рабочую версию
+// Перегрузка "+" для оборачивания кортежа, полученного при разворачивании variadic template
+template<typename Head, typename... Tail>
+std::tuple<Head, Tail...> operator+(std::tuple<Tail...> tuple, Head head) {
+    return std::tuple_cat(std::make_tuple(head), tuple);
+}
+    
+// Функция для оборачивания кортежа
+template<typename... Ts, std::size_t... Inds>
+auto reverse_tuple(std::tuple<Ts...> tuple, std::index_sequence<Inds...>) { // = std::make_index_sequence<sizeof...(Ts)>{}) {
+    // std::expected<std::tuple<>, details::scan_error> x0;  // начинаем с пустого кортежа
+    std::tuple<> x0;  // начинаем с пустого кортежа
+    return (x0 + ... + std::get<Inds>(tuple)).value();
+}
+
+// Рабочая версия функции scan
 template <typename... Ts> 
 std::expected<details::scan_result<Ts...>, details::scan_error>
 scan(std::string_view input, std::string_view format)  {
     
     auto args_and_placeholders = details::parse_sources(input, format);
-    std::size_t i = args_and_placeholders->first.size();
+    std::size_t num_placeholders = args_and_placeholders->first.size();
+    
+    if (num_placeholders < sizeof...(Ts)) {
+        return std::unexpected(details::scan_error("Количество плейсхолдеров в переданной строке превышает количество шаблонных параметров функции scan",
+                                 details::scan_error::ERROR::LACK_OF_ARGS));
+    } else if (num_placeholders > sizeof...(Ts)) {
+        return std::unexpected(details::scan_error("Количество шаблонных параметров функции scan превышает количество плейсхолдеров в переданной строке",
+                                 details::scan_error::ERROR::LACK_OF_TYPES));
+    }
     
     std::expected<std::tuple<>, details::scan_error> x0;  // начинаем с пустого кортежа
     auto result_tuple = (x0 + ... + (--i, details::parse_value_with_format<Ts>(
                                         args_and_placeholders->first[i],
                                         args_and_placeholders->second[i])));
+
+
+    
+    if (result_tuple.has_value()) {
+        // std::size_t i = args_and_placeholders->first.size();
+        // return details::scan_result((x0 + ... + (--i, std::get<i>(result_tuple.value()))));
+        return reverse_tuple(result_tuple.value(), std::make_index_sequence<sizeof...(Ts)>{});
+    } else {
+        return std::unexpected(result_tuple.error());
+    }
 
     // if ((!details::verify_matching<Ts>(parsed_parts->second, counter, error_str) || ...)) {
     //     // std::cout << error_str;
@@ -49,7 +80,11 @@ scan(std::string_view input, std::string_view format)  {
     //     return false;
     // }
     
-    return details::scan_result(result_tuple.value());
+    // if (result_tuple.has_value()) {
+    //     return details::scan_result(result_tuple.value());
+    // } else {
+    //     return details::scan_error(); // result_tuple.error();
+    // }
     // int aaa = 1;
     
 }

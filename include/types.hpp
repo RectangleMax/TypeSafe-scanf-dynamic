@@ -39,14 +39,25 @@ struct scan_error {
 template <typename... Ts>
 struct scan_result {
     scan_result() = default;
-    scan_result(Ts... args) : data(args ...) {}
-    scan_result(std::tuple<Ts...> tuple_) : data(tuple_) {}
+    // scan_result(Ts... args) : data(args ...) {}
+
+    // template<typename... Us>
+    // scan_result(Us... args): data(make_reverse_tuple(args...)) {}
+
+    scan_result(std::tuple<Ts...> tuple) : data(tuple) {}
  
     template<std::size_t index>
     auto value() { return std::get<index>(data); }
 
 private:
     std::tuple<Ts...> data;
+
+    template<typename Head, typename... Tail>
+    std::tuple<Tail..., Head> make_reverse_tuple(Head head, Tail... tail) {
+        return std::tuple_cat(std::make_tuple(head), make_reverse_tuple(tail...));
+    }
+
+    std::tuple<> make_reverse_tuple() { return std::tuple<>(); }
 };
 
 

@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include <print>
 
-#include "scan.hpp"
+#include "../include/scan.hpp"
 
 TEST(ScanTest, SimpleTest) {
     auto result = stdx::scan<std::string>("number", "{}");

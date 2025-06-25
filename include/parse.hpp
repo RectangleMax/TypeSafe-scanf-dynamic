@@ -59,9 +59,9 @@ bool is_type_matches_placeholder(std::string_view placeholder) {
 // Функция для парсинга значения с учетом спецификатора формата
 template <typename T>
 std::expected<T, scan_error> parse_value_with_format(std::string_view input, std::string_view fmt) {
-    if (!is_type_matches_placeholder<T>(input)) {
+    if (!is_type_matches_placeholder<T>(fmt)) {
         std::cout << "a!" << std::endl;
-        return std::unexpected(scan_error("temp"));
+        return std::unexpected(scan_error("temp", scan_error::ERROR::MISMATCH));
     }
     T t;
     return t;
