@@ -8,12 +8,22 @@
 
 #include <typeinfo>
 #include <cxxabi.h>
+#include <charconv>
+#include <format>
 
 #include "types.hpp"
 
-#include <iostream>
+
 
 namespace stdx::details {
+
+std::string demangle(const char* name) {
+    int status = 0;
+    char* demangled = abi::__cxa_demangle(name, 0, 0, &status);
+    std::string result = (status == 0) ? demangled : name;
+    std::free(demangled);
+    return result;
+}
 
 template<typename T>
 bool is_type_matches_placeholder(std::string_view placeholder) {
@@ -34,60 +44,33 @@ bool is_type_matches_placeholder(std::string_view placeholder) {
 };
 
 
-// template<typename Head, typename... Tail>
-// std::expected<std::tuple<Head, Tail...>, details::scan_error> 
-// operator+(std::expected<std::tuple<Tail...>, details::scan_error> tuple_, std::expected<Head, details::scan_error> value_) {
-//     // tuple_ содержит либор кортеж, либо код ошибок
-//     if (tuple_.has_value()) {
-//         if (value_.has_value()) {
-//             return std::tuple_cat(std::make_tuple(value_), tuple_); // продолжаем собирать результаты парсинга в кортеж
-//         } else {
-//             return value_.error();  // если несоответствие плейсхолдера и типа встречается впервые 
-//         }
-//     } else { 
-//         if (value_.has_value()) {
-//             return tuple_.error();  // пробрасываем информацию об ошибках дальше
-//         } else {
-//             value_.error().aggregate(tuple_.error);
-//             return value_.error();
-//         }
-//     }
-    
-// }
-
-
 // Функция для парсинга значения с учетом спецификатора формата
 template <typename T>
 std::expected<T, scan_error> parse_value_with_format(std::string_view input, std::string_view fmt) {
     if (!is_type_matches_placeholder<T>(fmt)) {
-        std::cout << "a!" << std::endl;
-        return std::unexpected(scan_error("temp", scan_error::ERROR::MISMATCH));
+        return std::unexpected(scan_error(std::format("{} не соответствует типу {}.", fmt,  
+                    demangle(typeid(T).name())), scan_error::ERROR::MISMATCH));
     }
-    T t;
-    return t;
+    if constexpr (std::is_same_v<T, std::string> || std::is_same_v<T, std::string_view>) {
+        return std::string(input);
+    } else { 
+        std::remove_const_t<T> t;
+        std::from_chars(input.data(), input.data() + input.size(), t);
+        return t;
+    }
 }
 
-// template<>
-// std::expected<std::tuple<Head, Ts>, std::string> operator+() {
-
-// }
-
-
-
-template<typename T>
-bool verify_matching(std::vector<std::string_view>& fmt, std::size_t& counter, std::string& error_str) {
-    if (!is_type_matches_placeholder<T>(fmt.at(++counter))) {
-        error_str = "Плейсхолдер с порядковым номером {} несоответствует указанному среди шаблонных аргументов типу";
-         // Несоответствие между типом аргумента "; // (%s) и плейсхолдером {%s}", typeid(T).name(), fmt[counter]);
-        return false;
-    }
-    return true;
-}
 
 // template<typename T>
-// T add_verified_value(std::vector<std::string_view>& input, std::size_t& counter) {
-//     return input[counter++];
+// bool verify_matching(std::vector<std::string_view>& fmt, std::size_t& counter, std::string& error_str) {
+//     if (!is_type_matches_placeholder<T>(fmt.at(++counter))) {
+//         error_str = "Плейсхолдер с порядковым номером {} несоответствует указанному среди шаблонных аргументов типу";
+//          // Несоответствие между типом аргумента "; // (%s) и плейсхолдером {%s}", typeid(T).name(), fmt[counter]);
+//         return false;
+//     }
+//     return true;
 // }
+
 
 // Функция для проверки корректности входных данных и выделения из обеих строк интересующих данных для парсинга
 template <typename... Ts>

@@ -16,7 +16,6 @@ struct scan_error {
         LACK_OF_TYPES,
         FORBIDDEN_TYPE,
         MISMATCH
-        // ошибка ковертации
     };
 
     scan_error() = default;
@@ -25,7 +24,6 @@ struct scan_error {
     }
 
     std::map< ERROR, std::deque<std::string> > errors_map;
-
 
     void unite_mismatching_errors(const scan_error& other) {
         auto it2 = other.errors_map.find(ERROR::MISMATCH);
@@ -39,26 +37,16 @@ struct scan_error {
 template <typename... Ts>
 struct scan_result {
     scan_result() = default;
-    // scan_result(Ts... args) : data(args ...) {}
-
-    // template<typename... Us>
-    // scan_result(Us... args): data(make_reverse_tuple(args...)) {}
-
     scan_result(std::tuple<Ts...> tuple) : data(tuple) {}
  
     template<std::size_t index>
-    auto value() { return std::get<index>(data); }
+    auto get_data_value() { return std::get<index>(data); }
 
-private:
+    template<std::size_t index>
+    using get_data_type = typename std::tuple_element<index, std::tuple<Ts...>>::type;
+
+// private:
     std::tuple<Ts...> data;
-
-    template<typename Head, typename... Tail>
-    std::tuple<Tail..., Head> make_reverse_tuple(Head head, Tail... tail) {
-        return std::tuple_cat(std::make_tuple(head), make_reverse_tuple(tail...));
-    }
-
-    std::tuple<> make_reverse_tuple() { return std::tuple<>(); }
 };
-
 
 } // namespace stdx::details

@@ -1,10 +1,7 @@
 #pragma once
-
 #include "parse.hpp"
 #include "types.hpp"
-
 #include <expected>
-#include <iostream>
 
 
 namespace stdx {
@@ -35,12 +32,18 @@ std::tuple<Head, Tail...> operator+(std::tuple<Tail...> tuple, Head head) {
     return std::tuple_cat(std::make_tuple(head), tuple);
 }
     
+// Get with remove 
+template<typename T, std::size_t index>
+std::remove_const_t<T> get_with_remove_const(index) {
+    auto 
+    return std::get
+}
+
 // Функция для оборачивания кортежа
 template<typename... Ts, std::size_t... Inds>
-auto reverse_tuple(std::tuple<Ts...> tuple, std::index_sequence<Inds...>) { // = std::make_index_sequence<sizeof...(Ts)>{}) {
-    // std::expected<std::tuple<>, details::scan_error> x0;  // начинаем с пустого кортежа
-    std::tuple<> x0;  // начинаем с пустого кортежа
-    return (x0 + ... + std::get<Inds>(tuple)).value();
+auto reverse_tuple(std::tuple<Ts...> tuple, std::index_sequence<Inds...>) { 
+    std::tuple<> x0;  
+    return (x0 + ... + std::get<Inds>(tuple));
 }
 
 // Рабочая версия функции scan
@@ -49,44 +52,28 @@ std::expected<details::scan_result<Ts...>, details::scan_error>
 scan(std::string_view input, std::string_view format)  {
     
     auto args_and_placeholders = details::parse_sources(input, format);
-    std::size_t num_placeholders = args_and_placeholders->first.size();
+    std::size_t i = args_and_placeholders->first.size();
     
-    if (num_placeholders < sizeof...(Ts)) {
+    if (i < sizeof...(Ts)) {
         return std::unexpected(details::scan_error("Количество плейсхолдеров в переданной строке превышает количество шаблонных параметров функции scan",
                                  details::scan_error::ERROR::LACK_OF_ARGS));
-    } else if (num_placeholders > sizeof...(Ts)) {
+    } else if (i > sizeof...(Ts)) {
         return std::unexpected(details::scan_error("Количество шаблонных параметров функции scan превышает количество плейсхолдеров в переданной строке",
                                  details::scan_error::ERROR::LACK_OF_TYPES));
     }
     
-    std::expected<std::tuple<>, details::scan_error> x0;  // начинаем с пустого кортежа
-    auto result_tuple = (x0 + ... + (--i, details::parse_value_with_format<Ts>(
+
+    std::expected<std::tuple<>, details::scan_error> x0;                        // начинаем с пустого кортежа
+    auto result_tuple = (x0 + ... + (--i, details::parse_value_with_format<Ts>( // и разворачиваем аргуметны в обратном порядке
                                         args_and_placeholders->first[i],
                                         args_and_placeholders->second[i])));
 
-
     
     if (result_tuple.has_value()) {
-        // std::size_t i = args_and_placeholders->first.size();
-        // return details::scan_result((x0 + ... + (--i, std::get<i>(result_tuple.value()))));
         return reverse_tuple(result_tuple.value(), std::make_index_sequence<sizeof...(Ts)>{});
     } else {
         return std::unexpected(result_tuple.error());
     }
-
-    // if ((!details::verify_matching<Ts>(parsed_parts->second, counter, error_str) || ...)) {
-    //     // std::cout << error_str;
-    //     // ruturn std::unexpected
-    //     return false;
-    // }
-    
-    // if (result_tuple.has_value()) {
-    //     return details::scan_result(result_tuple.value());
-    // } else {
-    //     return details::scan_error(); // result_tuple.error();
-    // }
-    // int aaa = 1;
-    
 }
 
 } // namespace stdx
