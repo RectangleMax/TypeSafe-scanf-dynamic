@@ -53,23 +53,18 @@ std::expected<T, scan_error> parse_value_with_format(std::string_view input, std
     }
     if constexpr (std::is_same_v<T, std::string> || std::is_same_v<T, std::string_view>) {
         return std::string(input);
-    } else { 
-        std::remove_const_t<T> t;
+    } else {
+        using T_non_const = std::remove_const_t<T>;
+        T_non_const t;
         std::from_chars(input.data(), input.data() + input.size(), t);
-        return t;
+        if constexpr (std::is_same_v<T, T_non_const>) {
+            return t;
+        } else {
+            typename std::add_const_t<T_non_const> t2(t);
+            return t2;
+        }
     }
 }
-
-
-// template<typename T>
-// bool verify_matching(std::vector<std::string_view>& fmt, std::size_t& counter, std::string& error_str) {
-//     if (!is_type_matches_placeholder<T>(fmt.at(++counter))) {
-//         error_str = "Плейсхолдер с порядковым номером {} несоответствует указанному среди шаблонных аргументов типу";
-//          // Несоответствие между типом аргумента "; // (%s) и плейсхолдером {%s}", typeid(T).name(), fmt[counter]);
-//         return false;
-//     }
-//     return true;
-// }
 
 
 // Функция для проверки корректности входных данных и выделения из обеих строк интересующих данных для парсинга

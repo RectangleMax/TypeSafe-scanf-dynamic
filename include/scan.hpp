@@ -31,13 +31,6 @@ template<typename Head, typename... Tail>
 std::tuple<Head, Tail...> operator+(std::tuple<Tail...> tuple, Head head) {
     return std::tuple_cat(std::make_tuple(head), tuple);
 }
-    
-// Get with remove 
-template<typename T, std::size_t index>
-std::remove_const_t<T> get_with_remove_const(index) {
-    auto 
-    return std::get
-}
 
 // Функция для оборачивания кортежа
 template<typename... Ts, std::size_t... Inds>
