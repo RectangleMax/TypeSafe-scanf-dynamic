@@ -14,7 +14,6 @@
 #include "types.hpp"
 
 
-
 namespace stdx::details {
 
 std::string demangle(const char* name) {
@@ -48,21 +47,15 @@ bool is_type_matches_placeholder(std::string_view placeholder) {
 template <typename T>
 std::expected<T, scan_error> parse_value_with_format(std::string_view input, std::string_view fmt) {
     if (!is_type_matches_placeholder<T>(fmt)) {
-        return std::unexpected(scan_error(std::format("{} не соответствует типу {}.", fmt,  
-                    demangle(typeid(T).name())), scan_error::ERROR::MISMATCH));
+        return std::unexpected(scan_error(std::format("{} не соответствует типу {}.", fmt, demangle(typeid(T).name()))));
     }
     if constexpr (std::is_same_v<T, std::string> || std::is_same_v<T, std::string_view>) {
         return std::string(input);
     } else {
-        using T_non_const = std::remove_const_t<T>;
-        T_non_const t;
+        std::remove_const_t<T> t; // std::remove_cvref_t<T>; 
         std::from_chars(input.data(), input.data() + input.size(), t);
-        if constexpr (std::is_same_v<T, T_non_const>) {
-            return t;
-        } else {
-            typename std::add_const_t<T_non_const> t2(t);
-            return t2;
-        }
+        // return static_cast<T>(t);    Всё равно констатность потреяется при извлечении из std::expected, 
+        return t;                    // поэтому можно без static_cast
     }
 }
 

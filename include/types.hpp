@@ -8,29 +8,7 @@ namespace stdx::details {
 
 // Класс для хранения ошибки неуспешного сканирования
 struct scan_error {
-    // std::string message;
-    
-    enum class ERROR {
-        DIFF_UNFORMAT_TEXT,
-        LACK_OF_ARGS,
-        LACK_OF_TYPES,
-        FORBIDDEN_TYPE,
-        MISMATCH
-    };
-
-    scan_error() = default;
-    scan_error(const std::string& message, ERROR err = ERROR::DIFF_UNFORMAT_TEXT) {
-        errors_map[err].push_back(message);
-    }
-
-    std::map< ERROR, std::deque<std::string> > errors_map;
-
-    void unite_mismatching_errors(const scan_error& other) {
-        auto it2 = other.errors_map.find(ERROR::MISMATCH);
-        if (it2 != other.errors_map.end()) {
-            errors_map[ERROR::MISMATCH].insert(errors_map[ERROR::MISMATCH].begin(), it2->second.begin(), it2->second.end());
-        }
-    }
+    std::string message;
 };
 
 // Шаблонный класс для хранения результатов успешного сканирования
@@ -48,5 +26,22 @@ struct scan_result {
 // private:
     std::tuple<Ts...> data;
 };
+
+// template <typename... Ts>
+// struct scan_result {
+    
+//     template<std::size_t i, typename T>
+//     void set_value(T val) {
+//         std::get<i>(tuple_) = val;
+//     }
+
+//     template<std::size_t i>
+//     auto get_value() {
+//         return std::get<i>(tuple_);
+//     }
+
+// private:
+//     std::tuple<Ts...> tuple_;
+// };
 
 } // namespace stdx::details

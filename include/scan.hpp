@@ -26,18 +26,18 @@ operator+(std::expected<std::tuple<Tail...>, details::scan_error> tail_tuple, st
     }   
 }
 
-// Перегрузка "+" для оборачивания кортежа, полученного при разворачивании variadic template
-template<typename Head, typename... Tail>
-std::tuple<Head, Tail...> operator+(std::tuple<Tail...> tuple, Head head) {
-    return std::tuple_cat(std::make_tuple(head), tuple);
-}
+// // Перегрузка "+" для оборачивания кортежа, полученного при разворачивании variadic template
+// template<typename Head, typename... Tail>
+// std::tuple<Head, Tail...> operator+(std::tuple<Tail...> tuple, Head head) {
+//     return std::tuple_cat(std::make_tuple(head), tuple);
+// }
 
-// Функция для оборачивания кортежа
-template<typename... Ts, std::size_t... Inds>
-auto reverse_tuple(std::tuple<Ts...> tuple, std::index_sequence<Inds...>) { 
-    std::tuple<> x0;  
-    return (x0 + ... + std::get<Inds>(tuple));
-}
+// // Функция для оборачивания кортежа
+// template<typename... Ts, std::size_t... Inds>
+// auto reverse_tuple(std::tuple<Ts...> tuple, std::index_sequence<Inds...>) { 
+//     std::tuple<> x0;  
+//     return (x0 + ... + std::get<Inds>(tuple));
+// }
 
 // Рабочая версия функции scan
 template <typename... Ts> 
@@ -45,28 +45,43 @@ std::expected<details::scan_result<Ts...>, details::scan_error>
 scan(std::string_view input, std::string_view format)  {
     
     auto args_and_placeholders = details::parse_sources(input, format);
-    std::size_t i = args_and_placeholders->first.size();
-    
-    if (i < sizeof...(Ts)) {
-        return std::unexpected(details::scan_error("Количество плейсхолдеров в переданной строке превышает количество шаблонных параметров функции scan",
-                                 details::scan_error::ERROR::LACK_OF_ARGS));
-    } else if (i > sizeof...(Ts)) {
-        return std::unexpected(details::scan_error("Количество шаблонных параметров функции scan превышает количество плейсхолдеров в переданной строке",
-                                 details::scan_error::ERROR::LACK_OF_TYPES));
+
+
+    std::size_t num_of_args = args_and_placeholders->first.size();
+    if (num_of_args < sizeof...(Ts)) {
+        return std::unexpected(details::scan_error("Количество плейсхолдеров в переданной строке превышает количество шаблонных параметров функции scan"));
+    } else if (num_of_args > sizeof...(Ts)) {
+        return std::unexpected(details::scan_error("Количество шаблонных параметров функции scan превышает количество плейсхолдеров в переданной строке"));
     }
     
 
-    std::expected<std::tuple<>, details::scan_error> x0;                        // начинаем с пустого кортежа
-    auto result_tuple = (x0 + ... + (--i, details::parse_value_with_format<Ts>( // и разворачиваем аргуметны в обратном порядке
-                                        args_and_placeholders->first[i],
-                                        args_and_placeholders->second[i])));
-
+    auto expected_tuple = [&]<std::size_t... Is>(std::index_sequence<Is...>) {
+        return std::make_tuple(details::parse_value_with_format<Ts>(args_and_placeholders->first[Is], args_and_placeholders->second[Is])...);
+    }(std::index_sequence_for<Ts...>{});
     
-    if (result_tuple.has_value()) {
-        return reverse_tuple(result_tuple.value(), std::make_index_sequence<sizeof...(Ts)>{});
-    } else {
-        return std::unexpected(result_tuple.error());
+
+    std::string message;
+    std::size_t errors_counter = 0;
+    [&]<std::size_t... Is>(std::index_sequence<Is...>) {
+        (([&] {
+            if (!std::get<Is>(expected_tuple).has_value()) {
+                message += std::get<Is>(expected_tuple).error().message;
+                ++errors_counter;
+            }
+        }()), ...);
+    }(std::index_sequence_for<Ts...>{});
+    if (errors_counter != 0) {
+        return std::unexpected(details::scan_error(message));
     }
+    
+    return details::scan_result<Ts...>(
+        [&]<std::size_t... Is>(std::index_sequence<Is...>) {
+            return std::forward_as_tuple(
+                static_cast<Ts>(std::get<Is>(expected_tuple).value())...
+            );
+        }(std::index_sequence_for<Ts...>{})
+    );
+
 }
 
 } // namespace stdx
