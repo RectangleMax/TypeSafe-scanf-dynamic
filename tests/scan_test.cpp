@@ -68,4 +68,4 @@ TEST(ScanTest, MixedCaseWithSpecifiers) {
     EXPECT_EQ(value.get_data_value<2>(), "Apple");
 }
 
-// указатель, ссылка, разные строки, std::from_chars_result
+// указатель, разные строки, std::from_chars_result - большое число, и

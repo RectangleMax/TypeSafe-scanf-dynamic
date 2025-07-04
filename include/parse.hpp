@@ -25,58 +25,70 @@ std::string demangle(const char* name) {
     return result;
 }
 
-template<typename T>
-bool is_type_matches_placeholder(std::string_view placeholder) {
-    if (placeholder.empty()) {
-        return true;
-    } else if (placeholder == "%d") {
-        return std::is_integral_v<T>;
-    } else if (placeholder == "%s") {
-        return std::is_same_v<T, std::string> ||
-               std::is_same_v<T, std::string_view>;
-    } else if (placeholder == "%u") {
-        return std::is_integral_v<T> && !std::is_same_v<T, bool>
-            && std::is_unsigned_v<T>; 
-    } else if (placeholder == "%f") {
-        return std::is_floating_point_v<T>; 
-    }
-    return false;
-};
-
 // template<typename T>
-// std::expected<T, scan_error> get_value_from_chars(std::string_view input) {
-//     std::remove_cvref_t<T> value;
-//     auto [ptr, ec] = std::from_chars(input.data(), input.data() + input.size(), value);
-//     if (ec != std::errc{}) {
-//         return std::unexpected(scan_error(std::error_code(static_cast<int>(ec), std::generic_category()).message()));
+// bool is_type_matches_placeholder(std::string_view placeholder) {
+//     if (placeholder.empty()) {
+//         return true;
+//     } else if (placeholder == "%d") {
+//         return std::is_integral_v<T>;
+//     } else if (placeholder == "%s") {
+//         return std::is_same_v<T, std::string> ||
+//                std::is_same_v<T, std::string_view>;
+//     } else if (placeholder == "%u") {
+//         return std::is_integral_v<T> && !std::is_same_v<T, bool>
+//             && std::is_unsigned_v<T>; 
+//     } else if (placeholder == "%f") {
+//         return std::is_floating_point_v<T>; 
 //     }
-//     // return static_cast<T>(t);     Всё равно констатность потреяется при извлечении из std::expected, 
-//     return value;                //  поэтому можно без static_cast
-// }
+//     return false;
+// };
+
+template<typename T>
+std::expected<T, scan_error> get_value_from_chars(std::string_view input) {
+    std::remove_cvref_t<T> value;
+    auto [ptr, ec] = std::from_chars(input.data(), input.data() + input.size(), value);
+    if (ec != std::errc{}) {
+        return std::unexpected(scan_error(std::error_code(static_cast<int>(ec), std::generic_category()).message()));
+    }
+    // return static_cast<T>(t);     Всё равно констатность потреяется при извлечении из std::expected, 
+    return value;                //  поэтому можно без static_cast
+}
+
+template <typename T>
+requires (std::is_integral_v<T> && !std::is_unsigned_v<T> && !std::is_same_v<T, bool>)
+std::expected<T, scan_error> parse_value_with_format(std::string_view input, std::string_view fmt) {
+    if (fmt != "%d")
+        return std::unexpected(scan_error(std::format("{} - некорректный плейсхолдер, для целочисленных типов используйте %d\n", fmt)));
+    return get_value_from_chars<T>(input);
+}
+
+template <typename T>
+requires (std::is_unsigned_v<T> && !std::is_same_v<T, bool>)
+std::expected<T, scan_error> parse_value_with_format(std::string_view input, std::string_view fmt) {
+    if (fmt != "%u")
+        return std::unexpected(scan_error(std::format("{} - некорректный плейсхолдер, для беззнаковых типов используйте %u\n", fmt)));
+    return get_value_from_chars<T>(input);
+}
+
+template <typename T>
+requires (std::is_floating_point_v<T>)
+std::expected<T, scan_error> parse_value_with_format(std::string_view input, std::string_view fmt) {
+    if (fmt != "%f")
+        return std::unexpected(scan_error(std::format("{} - некорректный плейсхолдер, для вещественных типов используйте %f\n", fmt)));
+    return get_value_from_chars<T>(input);
+}
 
 // Функция для парсинга значения с учетом спецификатора формата
 template <typename T>
 requires (std::is_pointer_v<T>)  
 std::expected<T, scan_error> parse_value_with_format(std::string_view input, std::string_view fmt) 
-{ return std::unexpected(scan_error("")); }
+{ return std::unexpected(scan_error("использование указателя в качестве шаблонного аргумента scan запрещено\n")); }
 
 template <typename T>
-requires (! std::is_pointer_v<T>) 
+requires (std::is_same_v<std::remove_cvref_t<T>, std::string> || 
+          std::is_same_v<std::remove_cvref_t<T>, std::string_view>)
 std::expected<T, scan_error> parse_value_with_format(std::string_view input, std::string_view fmt) {
-    if (!is_type_matches_placeholder<T>(fmt)) {
-        return std::unexpected(scan_error(std::format("{} не соответствует типу {}\n", fmt, demangle(typeid(T).name()))));
-    }
-    if constexpr (std::is_pointer_v<T>) {
-        return std::unexpected(scan_error(""));
-    }
-    if constexpr (std::is_same_v<T, std::string> || std::is_same_v<T, std::string_view>) {
-        return T(input);
-    } else {
-        std::remove_cvref_t<T> t;
-        std::from_chars(input.data(), input.data() + input.size(), t);
-        // return static_cast<T>(t);    Всё равно констатность потреяется при извлечении из std::expected, 
-        return t;                    // поэтому можно без static_cast
-    }
+    return T(input);
 }
 
 
