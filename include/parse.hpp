@@ -9,6 +9,7 @@
 #include <typeinfo>
 #include <cxxabi.h>
 #include <charconv>
+#include <system_error>
 #include <format>
 
 #include "types.hpp"
@@ -42,17 +43,36 @@ bool is_type_matches_placeholder(std::string_view placeholder) {
     return false;
 };
 
+// template<typename T>
+// std::expected<T, scan_error> get_value_from_chars(std::string_view input) {
+//     std::remove_cvref_t<T> value;
+//     auto [ptr, ec] = std::from_chars(input.data(), input.data() + input.size(), value);
+//     if (ec != std::errc{}) {
+//         return std::unexpected(scan_error(std::error_code(static_cast<int>(ec), std::generic_category()).message()));
+//     }
+//     // return static_cast<T>(t);     Всё равно констатность потреяется при извлечении из std::expected, 
+//     return value;                //  поэтому можно без static_cast
+// }
 
 // Функция для парсинга значения с учетом спецификатора формата
 template <typename T>
+requires (std::is_pointer_v<T>)  
+std::expected<T, scan_error> parse_value_with_format(std::string_view input, std::string_view fmt) 
+{ return std::unexpected(scan_error("")); }
+
+template <typename T>
+requires (! std::is_pointer_v<T>) 
 std::expected<T, scan_error> parse_value_with_format(std::string_view input, std::string_view fmt) {
     if (!is_type_matches_placeholder<T>(fmt)) {
-        return std::unexpected(scan_error(std::format("{} не соответствует типу {}.", fmt, demangle(typeid(T).name()))));
+        return std::unexpected(scan_error(std::format("{} не соответствует типу {}\n", fmt, demangle(typeid(T).name()))));
+    }
+    if constexpr (std::is_pointer_v<T>) {
+        return std::unexpected(scan_error(""));
     }
     if constexpr (std::is_same_v<T, std::string> || std::is_same_v<T, std::string_view>) {
-        return std::string(input);
+        return T(input);
     } else {
-        std::remove_const_t<T> t; // std::remove_cvref_t<T>; 
+        std::remove_cvref_t<T> t;
         std::from_chars(input.data(), input.data() + input.size(), t);
         // return static_cast<T>(t);    Всё равно констатность потреяется при извлечении из std::expected, 
         return t;                    // поэтому можно без static_cast

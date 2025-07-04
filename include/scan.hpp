@@ -44,8 +44,14 @@ template <typename... Ts>
 std::expected<details::scan_result<Ts...>, details::scan_error>
 scan(std::string_view input, std::string_view format)  {
     
-    auto args_and_placeholders = details::parse_sources(input, format);
+    if constexpr (((std::is_reference_v<Ts> || std::is_pointer_v<Ts>) || ...)) {
+        return std::unexpected(details::scan_error{"использование ссылочных типов и указателей в качестве шаблонных аргументов scan запрещено\n"});
+    }
 
+    auto args_and_placeholders = details::parse_sources(input, format);
+    if (!args_and_placeholders.has_value()) {
+        return std::unexpected(args_and_placeholders.error());
+    }
 
     std::size_t num_of_args = args_and_placeholders->first.size();
     if (num_of_args < sizeof...(Ts)) {
@@ -54,12 +60,10 @@ scan(std::string_view input, std::string_view format)  {
         return std::unexpected(details::scan_error("Количество шаблонных параметров функции scan превышает количество плейсхолдеров в переданной строке"));
     }
     
-
     auto expected_tuple = [&]<std::size_t... Is>(std::index_sequence<Is...>) {
         return std::make_tuple(details::parse_value_with_format<Ts>(args_and_placeholders->first[Is], args_and_placeholders->second[Is])...);
     }(std::index_sequence_for<Ts...>{});
     
-
     std::string message;
     std::size_t errors_counter = 0;
     [&]<std::size_t... Is>(std::index_sequence<Is...>) {
@@ -70,6 +74,7 @@ scan(std::string_view input, std::string_view format)  {
             }
         }()), ...);
     }(std::index_sequence_for<Ts...>{});
+    
     if (errors_counter != 0) {
         return std::unexpected(details::scan_error(message));
     }
