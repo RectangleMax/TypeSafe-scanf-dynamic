@@ -6,17 +6,78 @@
 #include <utility>
 #include <vector>
 
+#include <typeinfo>
+#include <cxxabi.h>
+#include <charconv>
+#include <system_error>
+#include <format>
+
 #include "types.hpp"
+
 
 namespace stdx::details {
 
-// здесь ваш код
+std::string demangle(const char* name) {
+    int status = 0;
+    char* demangled = abi::__cxa_demangle(name, 0, 0, &status);
+    std::string result = (status == 0) ? demangled : name;
+    std::free(demangled);
+    return result;
+}
+
+
+template<typename T>
+std::expected<T, scan_error> get_value_from_chars(std::string_view input) {
+    std::remove_cvref_t<T> value;
+    auto [ptr, ec] = std::from_chars(input.data(), input.data() + input.size(), value);
+    if (ec != std::errc{}) {
+        return std::unexpected(scan_error(std::error_code(static_cast<int>(ec), std::generic_category()).message()));
+    }
+    // return static_cast<T>(t);     Всё равно констатность потреяется при извлечении из std::expected, 
+    return value;                //  поэтому можно без static_cast
+}
+
+
+template <typename T>
+requires (std::is_integral_v<T> && !std::is_unsigned_v<T> && !std::is_same_v<T, bool>)
+std::expected<T, scan_error> parse_value_with_format(std::string_view input, std::string_view fmt) {
+    if (fmt != "%d"  &&  fmt != "")
+        return std::unexpected(scan_error(std::format("{} - некорректный плейсхолдер, для целочисленных типов используйте %d\n", fmt)));
+    return get_value_from_chars<T>(input);
+}
+
+
+template <typename T>
+requires (std::is_unsigned_v<T> && !std::is_same_v<T, bool>)
+std::expected<T, scan_error> parse_value_with_format(std::string_view input, std::string_view fmt) {
+    if (fmt != "%u"  &&  fmt != "")
+        return std::unexpected(scan_error(std::format("{} - некорректный плейсхолдер, для беззнаковых типов используйте %u\n", fmt)));
+    return get_value_from_chars<T>(input);
+}
+
+
+template <typename T>
+requires (std::is_floating_point_v<T>)
+std::expected<T, scan_error> parse_value_with_format(std::string_view input, std::string_view fmt) {
+    if (fmt != "%f"  &&  fmt != "")
+        return std::unexpected(scan_error(std::format("{} - некорректный плейсхолдер, для вещественных типов используйте %f\n", fmt)));
+    return get_value_from_chars<T>(input);
+}
+
 
 // Функция для парсинга значения с учетом спецификатора формата
 template <typename T>
+requires (std::is_pointer_v<T>)  
+std::expected<T, scan_error> parse_value_with_format(std::string_view input, std::string_view fmt) 
+{ return std::unexpected(scan_error("использование указателя в качестве шаблонного аргумента scan запрещено\n")); }
+
+template <typename T>
+requires (std::is_same_v<std::remove_cvref_t<T>, std::string> || 
+          std::is_same_v<std::remove_cvref_t<T>, std::string_view>)
 std::expected<T, scan_error> parse_value_with_format(std::string_view input, std::string_view fmt) {
-    // здесь ваш код
+    return T(input);
 }
+
 
 // Функция для проверки корректности входных данных и выделения из обеих строк интересующих данных для парсинга
 template <typename... Ts>
@@ -67,7 +128,7 @@ parse_sources(std::string_view input, std::string_view format) {
     } else {
         input_parts.emplace_back(input);
     }
-    return std::pair{format_parts, input_parts};
+    return std::pair{input_parts, format_parts};
 }
 
 } // namespace stdx::details
