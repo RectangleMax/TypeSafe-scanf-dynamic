@@ -15,7 +15,7 @@ struct scan_error {
 template <typename... Ts>
 struct scan_result {
     scan_result() = default;
-    scan_result(std::tuple<Ts...> tuple) : data(tuple) {}
+    scan_result(std::tuple<Ts...>&& tuple) : data(std::move(tuple)) {}
  
     template<std::size_t index>
     auto get_data_value() { return std::get<index>(data); }
