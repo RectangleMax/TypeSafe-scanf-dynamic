@@ -27,21 +27,4 @@ struct scan_result {
     std::tuple<Ts...> data;
 };
 
-// template <typename... Ts>
-// struct scan_result {
-    
-//     template<std::size_t i, typename T>
-//     void set_value(T val) {
-//         std::get<i>(tuple_) = val;
-//     }
-
-//     template<std::size_t i>
-//     auto get_value() {
-//         return std::get<i>(tuple_);
-//     }
-
-// private:
-//     std::tuple<Ts...> tuple_;
-// };
-
 } // namespace stdx::details

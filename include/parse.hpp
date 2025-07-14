@@ -25,23 +25,6 @@ std::string demangle(const char* name) {
     return result;
 }
 
-// template<typename T>
-// bool is_type_matches_placeholder(std::string_view placeholder) {
-//     if (placeholder.empty()) {
-//         return true;
-//     } else if (placeholder == "%d") {
-//         return std::is_integral_v<T>;
-//     } else if (placeholder == "%s") {
-//         return std::is_same_v<T, std::string> ||
-//                std::is_same_v<T, std::string_view>;
-//     } else if (placeholder == "%u") {
-//         return std::is_integral_v<T> && !std::is_same_v<T, bool>
-//             && std::is_unsigned_v<T>; 
-//     } else if (placeholder == "%f") {
-//         return std::is_floating_point_v<T>; 
-//     }
-//     return false;
-// };
 
 template<typename T>
 std::expected<T, scan_error> get_value_from_chars(std::string_view input) {
@@ -54,29 +37,33 @@ std::expected<T, scan_error> get_value_from_chars(std::string_view input) {
     return value;                //  поэтому можно без static_cast
 }
 
+
 template <typename T>
 requires (std::is_integral_v<T> && !std::is_unsigned_v<T> && !std::is_same_v<T, bool>)
 std::expected<T, scan_error> parse_value_with_format(std::string_view input, std::string_view fmt) {
-    if (fmt != "%d")
+    if (fmt != "%d"  &&  fmt != "")
         return std::unexpected(scan_error(std::format("{} - некорректный плейсхолдер, для целочисленных типов используйте %d\n", fmt)));
     return get_value_from_chars<T>(input);
 }
 
+
 template <typename T>
 requires (std::is_unsigned_v<T> && !std::is_same_v<T, bool>)
 std::expected<T, scan_error> parse_value_with_format(std::string_view input, std::string_view fmt) {
-    if (fmt != "%u")
+    if (fmt != "%u"  &&  fmt != "")
         return std::unexpected(scan_error(std::format("{} - некорректный плейсхолдер, для беззнаковых типов используйте %u\n", fmt)));
     return get_value_from_chars<T>(input);
 }
 
+
 template <typename T>
 requires (std::is_floating_point_v<T>)
 std::expected<T, scan_error> parse_value_with_format(std::string_view input, std::string_view fmt) {
-    if (fmt != "%f")
+    if (fmt != "%f"  &&  fmt != "")
         return std::unexpected(scan_error(std::format("{} - некорректный плейсхолдер, для вещественных типов используйте %f\n", fmt)));
     return get_value_from_chars<T>(input);
 }
+
 
 // Функция для парсинга значения с учетом спецификатора формата
 template <typename T>
